@@ -1,0 +1,2256 @@
+swagger: '2.0'
+info:
+  title: AES Service API
+  description: AES Service API 包含admin、user API，admin API 需帶入admin token認證，有使用到Radosgw的API需帶入AWS Signature v4 認證；user API 需以 Basic Auth 認證帳號
+  version: 0.1.0
+host: localhost
+schemes:
+  - http
+basePath: /api/v0.1
+produces:
+  - application/json
+  - text/plain
+consumes:
+  - application/json
+paths:
+  '/version':
+    get:
+      summary: 顯示AES版本號
+      description: 顯示AES版本號
+      tags: 
+        - Version
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/versionResponse'
+
+  '/rgw/notification':
+    post:
+      summary: 註冊事件
+      description: >
+        需帶入事件綁定的bucket名稱、事件policy ID、事件名稱和事件型態(SNS or SQS)，並在header中帶入s3 access key來註冊事件，成功時回傳事件ID
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-Access-Key
+          type: string
+          description: s3 Access Key
+          required: true
+        - in: body
+          name: event
+          description: 註冊事件參數，四個參數皆為required
+          required: true
+          schema:
+            $ref: '#/definitions/eventCreateRequest'
+      tags:
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/eventCreateResponse'
+  '/rgw/notifications':
+    get:
+      summary: 列出所有事件
+      description: >
+        帶入bucket名稱列出bucket所註冊的所有事件，並同時列出事件ID、事件規則ID、事件名稱、事件型態、s3 bucket名稱、觸發事件的s3事件 method、事件通知URL、客戶端使用者名稱、建立時間、更新時間資訊，在query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: query
+          name: bucketName
+          description: 事件bucket
+          required: true
+          type: string
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/eventListResponse'
+  '/rgw/notification/type/{type_en}':
+    get:
+      summary: 列出事件
+      description: > 
+        輸入bucket名稱與事件型態列出事件，並同時列出事件ID、事件規則ID、事件名稱、事件型態、s3 bucket名稱、觸發事件的s3事件 method、事件通知URL、客戶端使用者名稱、建立時間、更新時間資訊，在query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: type_en
+          description: 事件形式
+          required: true
+          type: string
+          enum: 
+            - SQS
+            - SNS
+        - in: query
+          name: bucketName
+          description: 事件bucket
+          required: true
+          type: string
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/eventListResponse'
+  '/rgw/notification/configuration/{configuration_id}':
+    get:
+      summary: 列出事件
+      description: >
+        指定事件ID列出事件，並同時列出事件ID、事件規則ID、事件名稱、事件型態、s3 bucket名稱、觸發事件的s3事件 method、事件通知URL、客戶端使用者名稱、建立時間、更新時間資訊，需在query中帶入bucketName
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: configuration_id
+          description: 事件ID
+          required: true
+          type: string
+        - in: query
+          name: bucketName
+          description: 事件bucket
+          required: true
+          type: string
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/eventListByCIDResponse'
+    patch:
+      summary: 更新事件
+      description: >
+        依事件ID更新事件，需在body帶入更新用的bucket名稱、事件policy ID、事件名稱和事件型態(SNS or SQS)，成功時回傳status: 0
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: configuration_id
+          description: 事件ID
+          required: true
+          type: string
+        - in: body
+          name: event
+          description: 更新事件參數，四個參數皆為required
+          required: true
+          schema:
+            $ref: '#/definitions/eventUpdateRequest'
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/baseResponse'
+    delete:
+      summary: 刪除事件
+      description: >
+        依照所帶入的事件ID刪除對指定事件，成功時回傳事件ID(configurationID)
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: configuration_id
+          description: 事件ID
+          required: true
+          type: string
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/eventDeleteResponse'
+  '/rgw/notification/policy':
+    post:
+      summary: 註冊事件規則
+      description: >
+        註冊給事件用的規則，需要帶入s3 method、通知用URL和計劃名稱，eventMethod (s3 method) 可以輸入 s3:ObjectCreated:\*、s3.ObjectCreated:Put、s3.ObjectCreated:Copy、s3:ObjectRemoved:\*、s3:ObjectRemoved:Delete，notificationURL (通知用URL)，notificationURL為SNS事件通知的網址，計畫名稱為需觸發事件的計畫名稱，其中notificationURL和eventMethod 只有在註冊SNS事件時會被使用，如以其註冊SQS事件這兩個參數會被忽略，註冊成功時會回傳事件規則ID(subscribeID)
+        
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: body
+          name: event
+          description: >
+            事件規則參數，其中eventMethod、projectName為required，notificationURL只有註冊SNS事件的規則時才需要輸入
+          required: true
+          schema:
+            $ref: '#/definitions/policyCreateRequest'
+      tags:
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/policyCreateResponse'
+    get:
+      summary: 列出所有事件規則
+      description: > 
+        依計畫名稱列出所有同計畫用的事件規則，並同時列出事件規則ID、觸發事件的s3事件 method、事件通知URL、客戶端使用者名稱、建立時間、更新時間資訊，需在body帶入計畫名稱，在 query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/policyListResponse'
+  '/rgw/notification/policy/{subscribe_id}':
+    get:
+      summary: 列出事件規則
+      description: > 
+        依ID列出事件規則，並同時列出事件規則ID、觸發事件的s3事件 method、事件通知URL、客戶端使用者名稱、建立時間、更新時間資訊，需帶入事件規則ID (subscription_id)
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: subscribe_id
+          description: 事件規則ID
+          required: true
+          type: string
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/policyListBySIDResponse'
+    delete:
+      summary: 刪除事件規則
+      description: >
+        依ID刪除事件規則，帶入事件規則ID刪除指定規則，成功時會回傳事件規則ID(subscribeID)
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: subscribe_id
+          description: 事件規則ID
+          required: true
+          type: string
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/policyDeleteResponse'
+  '/rgw/notification/sqs/{configuration_id}':
+    get:
+      summary: 列出SQS事件 log
+      description: >
+        依ID列出事件log，log包含s3時間，s3 method，s3 url，s3 status code，s3 bucket名稱，s3事件method，需帶入已註冊的事件ID
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: configuration_id
+          description: 事件ID
+          required: true
+          type: string
+        - in: query
+          name: contentSize
+          type: integer
+          description: 資料數量
+          default: 100
+          required: false
+      tags: 
+        - User/Event Notification
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/ListSQSContentResponse'
+  
+  '/rgw/logging/sns/{bucketName}':
+    get:
+      summary: 列出 SNS Log
+      description: > 
+        列出 SNS Log，需帶入bucket名稱，在Body帶入match和filter參數可以依所輸入的條件對log進行過濾(格式如body參數範例)，在query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-Access-Key
+          type: string
+          description: s3 Access Key
+          required: true
+        - in: path
+          name: bucketName
+          description: Bucket名稱
+          required: true
+          type: string
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+        - in: body
+          name: filter
+          description: 過濾資料所需要的條件參數，只需帶入需要的條件即可
+          required: false
+          schema:
+            $ref: '#/definitions/SNSLoggingRequest'
+      tags: 
+        - User/Elastic Search
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/SNSLoggingResponse'
+  '/rgw/logging/s3/{bucketName}':
+    get:
+      summary: 列出S3 Log
+      description: >
+        列出S3 Log，需帶入bucket名稱，在Body帶入match和filter參數可以依所輸入的條件對log進行過濾(格式如body參數範例)，在query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-Access-Key
+          type: string
+          description: s3 Access Key
+          required: true
+        - in: path
+          name: bucketName
+          description: Bucket名稱
+          required: true
+          type: string
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+        - in: body
+          name: filter
+          description: 過濾資料所需要的條件參數，只需帶入需要的條件即可
+          required: false
+          schema:
+            $ref: '#/definitions/S3LoggingRequest'
+      tags: 
+        - User/Elastic Search
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/S3LoggingResponse'
+  '/rgw/metadata/s3/{bucketName}':
+    get:
+      summary: 列出S3 metadata
+      description: >
+        列出S3 metadata，需帶入bucket名稱，在Body帶入match和filter參數可以依所輸入的條件對log進行過濾(格式如body參數範例)，在query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-Access-Key
+          type: string
+          description: s3 Access Key
+          required: true
+        - in: path
+          name: bucketName
+          description: Bucket名稱
+          required: true
+          type: string
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+        - in: body
+          name: filter
+          description: 過濾資料所需要的條件參數，只需帶入需要的條件即可
+          required: false
+          schema:
+            $ref: '#/definitions/S3MetadataRequest'
+      tags: 
+        - User/Elastic Search
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/S3MetadataResponse'
+     
+  '/rgw/ks/project/{project}/cred':
+    get:
+      summary: 取得 keystone credentials
+      description: >
+       依計劃取得keystone內記錄的s3 access key 和 secret key，如在query中帶入 accountType: id 則project可帶入計畫ID，否則需帶入計畫名稱，成功時回傳s3 access key與secret key
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: project
+          description: '計劃名稱或id，預設為帶入計畫名稱，如在query中帶入 accountType: id 則project可帶入計畫ID'
+          type: string
+          required: true
+        - in: query
+          name: accountType
+          description: 輸入的計畫型態為name或id
+          type: string
+          required: false
+          default: name
+      tags:
+        - User/Credentials
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/credentialsGetResponse'
+  '/rgw/users/{user}/subusers/cred':
+    get:
+      summary: 取得s3 access key 和 secret key
+      description: >
+       取得客戶端使用者的 s3 access key 和 secret key，需在uri輸入AWS使用者ID，成功時回傳s3 access key與secret key
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: path
+          name: user
+          description: radosgw AWS使用者ID，
+          type: string
+          required: true
+      tags:
+        - User/Credentials
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/credentialsGetResponse'
+        
+  '/kms/secrets':       
+    post:
+      summary: 新增 barbican secret
+      description: >
+        新增 barbican secret，需在body帶入自訂的帳號密碼，密碼需為32位的英數字元，成功時回傳status: 0
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: body
+          name: account
+          description: barbican帳號資訊，兩個參數都為required
+          required: true
+          schema:
+            $ref: '#/definitions/secretCreateRequest'
+      tags: 
+        - User/Barbican
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/secretCreateResponse'
+    get:
+      summary: 列出所有的 barbican secret
+      description: >
+        列出所有的 barbican secret，在query中可以帶入offset, limit達到分頁效果，response的total值為資料總數
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: query
+          name: offset
+          description: 資料溢位數目
+          required: false
+          type: integer
+        - in: query
+          name: limit
+          description: 資料顯示數目
+          required: false
+          type: integer
+      tags: 
+        - User/Barbican
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/secretListResponse'
+  '/kms/secrets/{secret_uuid}':
+    get:
+      summary: 列出 barbican secret
+      description: 依 secret uuid 列出 barbican secret
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: path
+          name: secret_uuid
+          description: barbican secret uuid
+          type: string
+          required: true
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+      tags: 
+        - User/Barbican
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/secretListByUUIDResponse'
+    delete:
+      summary: 刪除 barbican secret
+      description: >
+        依 secret uuid 刪除 barbican secret，成功時回傳status: 0
+      security:
+        - BasicAuth: []
+      parameters:
+        - in: path
+          name: secret_uuid
+          description: barbican secret uuid
+          type: string
+          required: true
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+      tags: 
+        - User/Barbican
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/secretDeleteResponse'
+            
+  '/admin/rgw/ks/projects':
+    get:
+      summary: 列出 keystone project
+      description: >
+        列出 aes keystone 內所有project，需在header帶入aes admin token 
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminProjectListResponse'
+  '/admin/rgw/ks/projects/user/{user}':
+    get:
+      summary: 列出 keystone project
+      description: >
+        '依使用者列出在 aes keystone 內的project，需在header帶入aes admin token，如在query中帶入 accountType: id 則user可帶入使用者ID，否則需帶入使用者名稱'
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          description: '使用者名稱或id，預設為帶入使用者名稱，如在query中帶入 accountType: id 則user可帶入使用者ID'
+          type: string
+          required: true
+        - in: query
+          name: accountType
+          description: 輸入的使用者型態為name或id
+          type: string
+          required: false
+          default: name
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminProjectListResponse'
+  '/admin/rgw/ks/project':
+    post:
+      summary: 新增 keystone project
+      description: >
+        新增 aes keystone project，需在header帶入aes admin token
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: body
+          name: project
+          description: 創建計畫所需參數，只有project.name為required
+          schema:
+            $ref: '#/definitions/adminProjectRequest' 
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminProjectCreateResponse' 
+  '/admin/rgw/ks/project/{project}':
+    delete:
+      summary: 刪除 keystone project
+      description: >
+        刪除 aes keystone project，需在header帶入aes admin token
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: project
+          description: '計劃名稱或id，預設為帶入計畫名稱，如在query中帶入 accountType: id 則project可帶入計畫ID'
+          type: string
+          required: true
+        - in: query
+          name: accountType
+          description: 輸入的使用者和計畫型態為name或id
+          type: string
+          required: false
+          default: name 
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminProjectDeleteResponse'  
+  '/admin/rgw/ks/project/{project}/add/{user}':
+    put:
+      summary: 新增使用者到 keystone project
+      description: >
+        新增使用者到  aes keystone project，需在header帶入aes admin token
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: project
+          description: '計劃名稱或id，預設為帶入計畫名稱，如在query中帶入 accountType: id 則project可帶入計畫ID'
+          type: string
+          required: true
+        - in: path
+          name: user
+          description: '使用者名稱或id，預設為帶入使用者名稱，如在query中帶入 accountType: id 則user可帶入使用者ID'
+          type: string
+          required: true  
+        - in: query
+          name: accountType
+          description: 輸入的使用者和計畫型態為name或id
+          type: string
+          required: false
+          default: name  
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/baseResponseWithNullData' 
+  '/admin/rgw/ks/project/{project}/remove/{user}':
+    delete:
+      summary: 刪除 keystone project 使用者
+      description: >
+        從  aes keystone project 刪除使用者，需在header帶入aes admin token
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: project
+          description: '計劃名稱或id，預設為帶入計畫名稱，如在query中帶入 accountType: id 則project可帶入計畫ID'
+          type: string
+          required: true
+        - in: path
+          name: user
+          description: '使用者名稱或id，預設為帶入使用者名稱，如在query中帶入 accountType: id 則user可帶入使用者ID'
+          type: string
+          required: true  
+        - in: query
+          name: accountType
+          description: 輸入的使用者和計畫型態為name或id
+          type: string
+          required: false
+          default: name  
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/baseResponseWithNullData' 
+  '/admin/rgw/ks/project/{project}/cred/{user}':
+    post:
+      summary: 在 keystone project 新增 credential
+      description: >
+        在 aes keystone project 新增 credential，需在header帶入aes admin token
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: project
+          description: '計劃名稱或id，預設為帶入計畫名稱，如在query中帶入 accountType: id 則project可帶入計畫ID'
+          type: string
+          required: true
+        - in: path
+          name: user
+          description: '使用者名稱或id，預設為帶入使用者名稱，如在query中帶入 accountType: id 則user可帶入使用者ID'
+          type: string
+          required: true  
+        - in: query
+          name: accountType
+          description: 輸入的使用者和計畫型態為name或id
+          type: string
+          required: false
+          default: name   
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminProjectCredCreateResponse' 
+    get:
+      summary: 列出 credential
+      description: >
+        列出 keystone project 指定使用者的 credential，需在header帶入aes admin token
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: project
+          description: '計劃名稱或id，預設為帶入計畫名稱，如在query中帶入 accountType: id 則project可帶入計畫ID'
+          type: string
+          required: true
+        - in: path
+          name: user
+          description: '使用者名稱或id，預設為帶入使用者名稱，如在query中帶入 accountType: id 則user可帶入使用者ID'
+          type: string
+          required: true  
+        - in: query
+          name: accountType
+          description: 輸入的使用者和計畫型態為name或id
+          type: string
+          required: false
+          default: name   
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminProjectCredCreateResponse' 
+  '/admin/rgw/ks/users':
+    get:
+      summary: 列出 keystone 使用者
+      description: >
+        列出 aes keystone 內所有使用者，需在header帶入aes admin token 
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+      tags: 
+        - Admin/Keystone
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminUserListResponse'
+            
+  '/admin/rgw/users':
+    put:
+      summary: 新增 s3 user
+      description: >
+        新增 radosgw s3 user，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳s3 使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: query
+          name: user
+          type: string
+          description: 欲建立的AWS使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWUserResponse'
+    get:
+      summary: 列出 s3 user
+      description: >
+        列出 radosgw s3 user，需在header帶入aes admin token，authorization需帶入admin AWS Signature
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWUserGetResponse'
+  '/admin/rgw/users/{user}':
+    get:
+      summary: 列出 s3 user
+      description: >
+        列出 radosgw s3 user，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳AWS使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWUserResponse'
+    post:
+      summary: 更新 s3 user
+      description: >
+        更新 radosgw s3 user，需在header帶入aes admin token，authorization需帶入admin AWS Signature，輸入display-name參數可更改AWSAWS使用者名稱，輸入max-buckets參數可更改AWS使用者的bucket最大數量，成功回傳AWS使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+        - in: query
+          name: display-name
+          type: string
+          required: false
+          description: 欲更新的AWS使用者名稱
+        - in: query
+          name: max-buckets
+          type: integer
+          required: false
+          description: 欲更新的buckets最大值
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWUserResponse'      
+    delete:
+      summary: 刪除 s3 user
+      description: >
+        刪除 radosgw s3 user，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳刪除的AWS使用者ID
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWUserDeleteResponse'        
+  '/admin/rgw/users/{user}/cred':
+    get:
+      summary: 列出 s3 user key
+      description: >
+        列出 radosgw s3 user access key 和 secret key，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳AWS使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWUserCredResponse'          
+  '/admin/rgw/users/{user}/subusers':
+    put:
+      summary: 建立 subuser
+      description: >
+        對 radosgw s3 user 新增 subuser，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳AWS子使用者ID
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+        - in: query
+          name: subuser
+          type: string
+          required: true
+          description: AWS子使用者ID  
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWSubuserCreateResponse' 
+    get:
+      summary: 列出 subusers
+      description: >
+        列出 radosgw s3 user 的所有 subuser，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳AWS使用者的所有AWS子使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWSubuserResponse'
+  '/admin/rgw/users/{user}/subusers/{subuser}':
+    post:
+      summary: 更新 subuser
+      description: >
+        帶入access參數更新 radosgw AWS子使用者的權限，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳更新後的AWS子使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+        - in: path
+          name: subuser
+          type: string
+          required: true
+          description: AWS子使用者ID
+        - in: query
+          name: access
+          type: string
+          required: true
+          description: AWS子使用者權限，可輸入read, write, readwrite, full
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWSubuserResponse'
+    delete:
+      summary: 刪除 subuser
+      description: >
+        刪除 radosgw s3 subuser，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳被刪除的AWS子使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+        - in: path
+          name: subuser
+          type: string
+          required: true
+          description: AWS子使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWSubuserDeleteResponse'
+  '/admin/rgw/users/{user}/subusers/{subuser}/cred':
+    get:
+      summary: 列出 s3 subuser key
+      description: >
+        列出 radosgw s3 subuser access key 和 secret key，需在header帶入aes admin token，authorization需帶入admin AWS Signature，成功回傳AWS子使用者資訊
+      security:
+        - AWSSignatureAuth: []
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          type: string
+          required: true
+          description: AWS使用者ID
+        - in: path
+          name: subuser
+          type: string
+          required: true
+          description: AWS子使用者ID
+      tags: 
+        - Admin/RadosGW
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminRGWSubuserCredResponse'
+            
+  '/admin/mq/queues/user/{user}':
+    get:
+      summary: 列出SQS Queue
+      description: >
+        列出 客戶端使用者所擁有的SQS Queue，需在header帶入aes admin token 
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+        - in: path
+          name: user
+          description: 客戶端使用者名稱
+          type: string
+          required: true
+      tags: 
+        - Admin/RabbitMQ
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminQueueListResponse'
+  '/admin/mq/consumers':
+    get:
+      summary: 列出SQS Consumer
+      description: >
+        列出 AES 所有運作中的 Consumer，需在header帶入aes admin token 
+      parameters:
+        - in: header
+          name: Content-Type
+          type: string
+          required: true
+          default: application/json
+        - in: header
+          name: X-AESServices-Token
+          type: string
+          required: true
+      tags: 
+        - Admin/RabbitMQ
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/adminConsumerListResponse'
+          
+
+securityDefinitions:
+  BasicAuth:
+    type: basic
+  AWSSignatureAuth:
+    type: apiKey
+    in: header
+    name: Authorization
+      
+definitions:
+  eventCreateRequest:
+    type: object
+    required: 
+      - bucketName
+      - subscribeID
+      - name
+      - type
+    properties: 
+      bucketName:
+        type: string
+      subscribeID:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+        enum: 
+            - SQS
+            - SNS
+  eventUpdateRequest:
+    type: object
+    required: 
+      - bucketName
+      - subscribeID
+      - name
+      - type
+    properties: 
+      bucketName:
+        type: string
+      subscribeID:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+  policyCreateRequest:
+    type: object
+    required:
+      - eventMethod 
+      - projectName
+    properties: 
+      eventMethod:
+        type: string
+        description: '可以輸入 s3:ObjectCreated:*、s3.ObjectCreated:Put、s3.ObjectCreated:Copy、s3:ObjectRemoved:*、s3:ObjectRemoved:Delete'
+        enum:
+          - s3:ObjectCreated:*
+          - s3.ObjectCreated:Put
+          - s3.ObjectCreated:Copy
+          - s3:ObjectRemoved:*
+          - s3:ObjectRemoved:Delete
+      notificationURL:
+        type: string
+  SNSLoggingRequest:
+    description: body只需帶入需要的條件
+    type: object
+    properties:
+      match:
+        type: array
+        items: 
+          type: object
+          properties:
+            date:
+              type: string
+            method:
+              type: string
+            status:
+              type: string
+            url:
+              type: string
+      filter:
+        type: array
+        items:
+          type: object
+          properties:
+            range:
+              type: object
+              properties:
+                date:
+                  type: object
+                  properties:
+                    gte:
+                      type: string
+                    lte:
+                      type: string
+  S3LoggingRequest:
+    description: body只需帶入需要的條件
+    type: object
+    properties:
+      match:
+        type: array
+        items: 
+          type: object
+          properties:
+            date:
+              type: string
+            event_method:
+              type: string
+            method:
+              type: string
+            status:
+              type: string
+            url:
+              type: string
+      filter:
+        type: array
+        items:
+          type: object
+          properties:
+            range:
+              type: object
+              properties:
+                date:
+                  type: object
+                  properties:
+                    gte:
+                      type: string
+                    lte:
+                      type: string
+  S3MetadataRequest:
+    description: body只需帶入需要的條件
+    type: object
+    properties:
+      match:
+        type: array
+        items: 
+          type: object
+          properties:
+            instance:
+              type: string
+            meta.content_type:
+              type: string
+            meta.etag:
+              type: string
+            meta.tail_tag:
+              type: string
+            name:
+              type: string
+            owner.display_name:
+              type: string
+            owner.id:
+              type: string
+            versioned_epoch:
+              type: integer
+      filter:
+        type: array
+        items:
+          type: object
+          properties:
+            range:
+              type: object
+              properties:
+                meta.mtime:
+                  type: object
+                  properties:
+                    gte:
+                      type: string
+                    lte:
+                      type: string
+                meta.size:
+                  type: object
+                  properties:
+                    gte:
+                      type: string
+                    lte:
+                      type: string
+  secretCreateRequest:
+    type: object
+    required: 
+      - name
+      - password
+    properties:
+      name:
+        type: string
+      password:
+        type: string
+        description: 密碼需要32位數
+  adminProjectRequest:
+    type: object
+    required: 
+      - project
+    properties:
+      project:
+        type: object
+        required: 
+          - name
+        properties:
+          description:
+            type: string
+          domain_id:
+            type: string
+          enabled:
+            type: boolean
+          is_domain:
+            type: boolean
+            default: false
+          name: 
+            type: string
+          
+  versionResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      version:
+        type: string
+  baseResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+  baseResponseWithNullData:
+    type: object
+    properties:
+      status: 
+        type: integer
+      data:
+        type: object
+  eventCreateResponse:
+    type: object
+    properties:
+      status: 
+        type: integer
+      data:
+        type: object
+        properties:
+          configurationID:
+            type: string
+  eventListResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          eventList:
+            type: array
+            items:
+              type: object
+              properties:
+                configurationID:
+                  type: string
+                subscribeID:
+                  type: string
+                bucketName:
+                  type: string
+                name:
+                  type: string
+                type:
+                  type: string
+                eventMethod:
+                  type: string
+                notificationURL:
+                  type: string
+                userID:
+                  type: string
+                createTime:
+                  type: string
+                updateTime:
+                  type: string
+          total:
+            type: integer
+  eventListByCIDResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          configurationID:
+            type: string
+          subscribeID:
+            type: string
+          bucketName:
+            type: string
+          name:
+            type: string
+          type:
+            type: string
+          eventMethod:
+            type: string
+          notificationURL:
+            type: string
+          projectID:
+            type: string
+          userID:
+            type: string
+          createTime:
+            type: string
+          updateTime:
+            type: string
+  eventDeleteResponse:
+    type: object
+    properties:
+      status: 
+        type: integer
+      data:
+        type: object
+        properties:
+          configurationID:
+            type: string
+  policyCreateResponse:
+    type: object
+    properties:
+      status: 
+        type: integer
+      data:
+        type: object
+        properties:
+          subscribeID:
+            type: string         
+  policyListResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          policyList:
+            type: array
+            items:
+              type: object
+              properties:
+                subscribeID:
+                  type: string
+                eventMethod:
+                  type: string
+                notificationURL:
+                  type: string
+                userID:
+                  type: string
+                createTime:
+                  type: string
+                updateTime:
+                  type: string
+          total:
+            type: integer
+  policyListBySIDResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          subscribeID:
+            type: string
+          eventMethod:
+            type: string
+          notificationURL:
+            type: string
+          userID:
+            type: string
+          createTime:
+            type: string
+          updateTime:
+            type: string
+  policyDeleteResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          subscribeID:
+            type: string
+  ListSQSContentResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          logList:
+            type: array
+            items:
+              type: object
+              properties:
+                date:
+                  type: string
+                method:
+                  type: string
+                status:
+                  type: string
+                url:
+                  type: string
+                bucket:
+                  type: string
+                event_method:
+                  type: string
+                  
+  credentialsGetResponse:
+    type: object
+    properties: 
+      access: 
+        type: string
+      secret:
+        type: string
+            
+  SNSLoggingResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          hits:
+            type: array
+            items:
+              type: object
+              properties:
+                _id: 
+                  type: string
+                _index:
+                  type: string
+                _score:
+                  type: integer
+                _source: 
+                  type: object
+                  properties:
+                    bucket:
+                      type: string
+                    date:
+                      type: string
+                    method:
+                      type: string
+                    status:
+                      type: integer
+                    url:
+                      type: string
+                _type: 
+                  type: string
+          total:
+            type: integer
+  S3LoggingResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          hits:
+            type: array
+            items:
+              type: object
+              properties:
+                _id: 
+                  type: string
+                _index:
+                  type: string
+                _score:
+                  type: integer
+                _source: 
+                  type: object
+                  properties:
+                    bucket:
+                      type: string
+                    date:
+                      type: string
+                    event_method:
+                      type: string
+                    method:
+                      type: string
+                    status:
+                      type: integer
+                    url:
+                      type: string
+                _type: 
+                  type: string
+          total:
+            type: integer
+  S3MetadataResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          hits:
+            type: array
+            items:
+              type: object
+              properties:
+                _id: 
+                  type: string
+                _index:
+                  type: string
+                _score:
+                  type: integer
+                _source: 
+                  type: object
+                  properties:
+                    bucket:
+                      type: string
+                    instance:
+                      type: string
+                    meta:
+                      type: object
+                      properties:
+                        content_type:
+                          type: string
+                        etag:
+                          type: string
+                        mtime:
+                          type: string
+                        size:
+                          type: integer
+                        tail_tag:
+                          type: string
+                        x-amz-content-sha256:
+                          type: string
+                        x-amz-date:
+                          type: string
+                        x-amz-storage-class:
+                          type: string
+                    name:
+                      type: string
+                    owner:
+                      type: object
+                      properties:
+                        display_name:
+                          type: string
+                        id:
+                          type: string
+                    permissions:
+                      type: array
+                      items:
+                        type: string
+                    versioned_epoch:
+                      type: integer
+                _type: 
+                  type: string
+          total:
+            type: integer
+            
+  secretCreateResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+  secretListResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          secret:
+            type: array
+            items:
+              type: object
+              properties:
+                secret_id:
+                  type: string
+                status:
+                  type: string
+                created:
+                  type: string
+                algorithm:
+                  type: string
+                bit_length:
+                  type: string
+                name:
+                  type: string
+                secret_type:
+                  type: string
+          total:
+            type: integer
+  secretListByUUIDResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          status:
+            type: string
+          created:
+            type: string
+          updated:
+            type: string
+          algorithm:
+            type: string
+          bit_length:
+            type: integer
+          name:
+            type: string
+          secret_type:
+            type: string
+          content_types:
+            type: object
+            properties:
+              default:
+                type: string
+  secretDeleteResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+        
+  adminProjectListResponse:
+    type: object
+    properties:
+      status: 
+        type: integer
+      data:
+        type: object
+        properties:
+          projects:
+            type: array
+            items:
+              type: object
+              properties:
+                description:
+                  type: string
+                domain_id:
+                  type: string
+                enabled:
+                  type: boolean
+                id:
+                  type: string
+                is_domain:
+                  type: boolean
+                links:
+                  type: object
+                  properties:
+                    self:
+                      type:
+                        string
+                name:
+                  type: string
+                parent_id:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+  adminProjectCreateResponse:
+    type: object
+    properties:
+      status:
+        type: string
+      data:
+        type: object
+        properties:
+          project:
+            type: object
+            properties:
+              description:
+                type: string
+              domain_id:
+                type: string
+              enabled:
+                type: boolean
+              id:
+                type: string
+              is_domain:
+                type: boolean
+              links:
+                type: object
+                properties:
+                  self:
+                    type:
+                      string
+              name:
+                type: string
+              parent_id:
+                type: string
+              tags:
+                type: array
+                items:
+                  type: string
+  adminProjectDeleteResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: string
+  adminProjectCredCreateResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          access:
+            type: string
+          secret:
+            type: string
+  adminUserListResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          users:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                id:
+                  type: string
+                  
+  adminRGWUserResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          tenant:
+            type: string
+          user_id:
+            type: string
+          display_name:
+            type: string
+          email:
+            type: string
+          max_Buckets:
+            type: integer
+          subusers:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: string
+                permissions:
+                  type: string
+          keys:
+            type: array
+            items:
+              type: object
+              properties:
+                user:
+                  type: string
+                access_key:
+                  type: string
+                secret_key:
+                  type: string
+  adminRGWUserGetResponse:
+    type: object 
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          user:
+            type: array
+            items:
+              type: string
+  adminRGWUserDeleteResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          user:
+            type: string
+  adminRGWUserCredResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          user:
+            type: string
+          access_key:
+            type: string
+          secret_key:
+            type: string
+  adminRGWSubuserCreateResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          subuserID: 
+            type: string
+  adminRGWSubuserResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          subuser:
+            type: array
+            items: 
+              type: object
+              properties:
+                id:
+                  type: string
+                permissions:
+                  type: string
+  adminRGWSubuserDeleteResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          user:
+            type: string
+          subuser:
+            type: string
+  adminRGWSubuserCredResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: object
+        properties:
+          user:
+            type: string
+          access_key:
+            type: string
+          secret_key:
+            type: string
+                  
+  adminQueueListResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: array
+        items:
+          type: object
+          properties:
+            state: 
+              type: string
+            vhost: 
+              type: string
+            name: 
+              type: string
+            arguments: 
+              type: object
+              properties:
+                x-max-length: 
+                  type: integer
+            consumers: 
+              type: integer
+            messages: 
+              type: integer
+  adminConsumerListResponse:
+    type: object
+    properties:
+      status:
+        type: integer
+      data:
+        type: array
+        items:
+          type: object
+          properties:
+            channel_details: 
+              type: object
+              properties:
+                connection_name:
+                  type: string
+                name:
+                  type: string
+                node:
+                  type: string
+                number:
+                  type: integer
+                peer_host:
+                  type: string
+                peer_port:
+                  type: integer
+                user:
+                  type: string
+            queue:
+              type: object
+              properties:
+                name: 
+                  type: string
+                vhost:
+                  type: string        
